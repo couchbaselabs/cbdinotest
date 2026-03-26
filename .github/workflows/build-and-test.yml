@@ -81,8 +81,17 @@ jobs:
             https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.110/cbdinocluster-linux-amd64
           chmod +x cbdinocluster
 
-      - name: Run Test
+      - name: Start worker container
         run: |
           docker run -d --name worker --network host testsvc
+
+      - name: Run Test
+        run: |
           docker logs -f worker 2>&1 | sed -u 's/^/[WORKER] /' &
+          sleep 1
           ./cbdinotest-linux run ./examples/situation.js
+
+      - name: Stop worker container
+        if: always()
+        run: |
+          docker stop worker
