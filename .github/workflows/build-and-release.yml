@@ -1,0 +1,66 @@
+name: Build and Release
+
+permissions:
+  contents: write
+on:
+  push:
+    tags:
+      - v*
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        platform: [darwin, linux, windows]
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.21
+      - name: Install dependencies
+        run: go get .
+      - name: Build Binary
+        run: GOOS=${{ matrix.platform }} GOARCH=${{ matrix.arch }} CGO_ENABLED=0 go build -o cbdinotest-${{ matrix.platform }}-${{ matrix.arch }} -ldflags="-X github.com/couchbaselabs/cbdinotest/contrib/buildversion.MainPkgVersion=${{ github.ref_name }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cbdinotest-${{ matrix.platform }}-${{ matrix.arch }}
+          path: cbdinotest-${{ matrix.platform }}-${{ matrix.arch }}
+  publish:
+    name: Publish
+    needs: [build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cbdinotest-linux-amd64
+      - uses: actions/download-artifact@v4
+        with:
+          name: cbdinotest-linux-arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: cbdinotest-darwin-amd64
+      - uses: actions/download-artifact@v4
+        with:
+          name: cbdinotest-darwin-arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: cbdinotest-windows-amd64
+      - uses: actions/download-artifact@v4
+        with:
+          name: cbdinotest-windows-arm64
+      - name: Rename Windows Amd64 Binary
+        run: mv cbdinotest-windows-amd64 cbdinotest-windows-amd64.exe
+      - name: Rename Windows Arm64 Binary
+        run: mv cbdinotest-windows-arm64 cbdinoccbdinotestluster-windows-arm64.exe
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            cbdinotest-darwin-amd64
+            cbdinotest-darwin-arm64
+            cbdinotest-linux-amd64
+            cbdinotest-linux-arm64
+            cbdinotest-windows-amd64.exe
+            cbdinotest-windows-arm64.exe
